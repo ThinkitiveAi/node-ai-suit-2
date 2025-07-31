@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model users_user {
+  id                    Int    @id @default(autoincrement())
+  password              String?   @db.VarChar(128)
+  last_login            DateTime?  @db.Timestamptz @default(now())
+  is_superuser          Boolean?
+  username              String?   @unique @db.VarChar(150)
+  is_staff              Boolean?
+  is_active             Boolean?
+  date_joined           DateTime?  @db.Timestamptz @default(now())
+  uuid                  String?   @unique @db.Uuid
+  email                 String?   @unique @db.VarChar(254)
+  first_name            String?   @db.VarChar(255)
+  last_name             String?   @db.VarChar(255)
+  is_admin              Boolean?
+  is_provider           Boolean?
+  is_patient            Boolean?
+  picture               String?   @db.Text
+  is_deleted            Boolean? @default(false)
+  doctor                Doctor[]
+  patient               Patient[]
+}
+
+model Doctor {
+  id                    Int    @id @default(autoincrement()) 
+  first_name            String    @db.VarChar(50)
+  last_name             String    @db.VarChar(50)
+  email                 String    @unique @db.VarChar(254)
+  is_verified           Boolean?   @default(false)
+  phone_number          String?    @unique @db.VarChar(20)
+  password_hash         String?    @db.Text
+  specialization        String?    @db.VarChar(100)
+  license_number        String    @unique @db.VarChar(50)
+  years_of_experience   Int?       @default(0)
+  clinic_address        Json?      // Will store the address object
+  verification_status   VerificationStatus? @default(PENDING)
+  license_document_url  String?   @db.Text
+  is_active             Boolean   @default(true)
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  user_id               Int?
+  user                  users_user? @relation(fields: [user_id], references: [id])
+  provider_locations    provider_locations[]
+  provider_availability provider_availability[]
+
+  @@map("doctors")
+  @@index([user_id])
+}
+
+model Patient {
+  id                    Int       @id @default(autoincrement())
+  first_name            String    @db.VarChar(50)
+  last_name             String    @db.VarChar(50)
+  email                 String    @unique @db.VarChar(254)
+  phone_number          String ?   @unique @db.VarChar(20)
+  password_hash         String?    @db.Text
+  date_of_birth         DateTime?  @db.Date
+  gender                Gender?    @default(PREFER_NOT_TO_SAY)
+  address               Json?      // Will store the address object
+  emergency_contact     Json?     // Will store the emergency contact object
+  medical_history       String[]  @default([]) // Array of strings
+  insurance_info        Json?     // Will store the insurance info object
+  email_verified        Boolean?   @default(false)
+  phone_verified        Boolean?   @default(false)
+  is_active             Boolean?   @default(true)
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  user_id               Int?
+  user                  users_user? @relation(fields: [user_id], references: [id])
+  provider_locations    provider_locations[]
+
+  @@map("patients")
+  @@index([user_id])
+}
+
+
+model provider_locations {
+  uuid                   String   @id @default(uuid())
+  name                   String
+  placeOfService         String?  @map("place_of_service")
+  specialityType         String?  @map("speciality_type")
+  email                  String?
+  groupNpiNumber         Int?     @map("group_npi_number")
+  fax                    String?
+  information            String?
+  timezone               String?
+  contactNumber          Int?     @map("contact_number")
+  contactPerson          String?  @map("contact_person")
+  physicalAddress1       String   @map("physical_address_1")
+  physicalAddress2       String?  @map("physical_address_2")
+  physicalAddressCity    String   @map("physical_address_city")
+  physicalAddressState   String   @map("physical_address_state")
+  physicalAddressCountry String?  @map("physical_address_country")
+  physicalAddressZip     String   @map("physical_address_zip")
+  billingAddress1        String?  @map("billing_address_1")
+  billingAddress2        String?  @map("billing_address_2")
+  billingAddressCity     String?  @map("billing_address_city")
+  billingAddressState    String?  @map("billing_address_state")
+  billingAddressCountry  String?  @map("billing_address_country")
+  billingAddressZip      String?  @map("billing_address_zip")
+  officeHours            Json?    @map("office_hours") @db.Json
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamp
+  providerId             Int?     @map("provider_id")
+  locationId             String?  @map("location_id")
+  idQualifier            String?  @map("id_qualifier")
+  number                 Int?
+  status                 Boolean?
+  imagePath              String?  @map("image_path")
+
+  provider               Doctor?      @relation(fields: [providerId], references: [id])
+  patient                Patient[]
+  provider_availability_slots provider_availability_slots[]
+  availability_block_days availability_block_days[]
+}
+
+
+
+model provider_availability {
+  uuid                                  String   @id @default(uuid())
+  createdAt                             DateTime @default(now()) @map("created_at")
+  updatedAt                             DateTime @default(now()) @map("updated_at")
+  providerId                            Int?   @unique @map("provider_id")
+  bookingWindow                         Int      @map("booking_window")
+  timeZone                              String?  @default("IST") @map("time_zone")
+  newAppointmentTime                    Int?     @map("new_appointment_time")
+  followUpAppointmentTime               Int?     @map("follow_up_appointment_time")
+  bufferTime                            Int      @map("buffer_time")
+  preventAppointment                    Json?    @map("prevent_appointment")
+  minimumSchedulingThreshold            Int      @map("minimum_scheduling_threshold")
+  minimumSchedulingThresholdDescription String   @map("minimum_scheduling_threshold_description")
+
+  provider                    Doctor?              @relation(fields: [providerId], references: [id])
+  provider_availability_slots provider_availability_slots[]
+  availability_block_days     availability_block_days[]
+}
+
+
+model provider_availability_slots {
+  uuid                   String   @id @default(uuid())
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamp
+  day                    String
+  startTime              String   @map("start_time")
+  endTime                String   @map("end_time")
+  providerAvailabilityId String   @map("provider_availability_id")
+  availabilityLocationId String?  @map("availability_location_id")
+  virtual                Boolean?
+  date                   DateTime
+  isSingleDaySlot        Boolean? @map("is_single_day_slot")
+
+  providerAvailability provider_availability? @relation(fields: [providerAvailabilityId], references: [uuid])
+  availabilityLocation provider_locations?    @relation(fields: [availabilityLocationId], references: [uuid])
+}
+
+model availability_block_days {
+  uuid                   String                 @id @default(uuid())
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamp
+  updatedAt              DateTime               @default(now()) @map("updated_at") @db.Timestamp
+  date                   DateTime               @db.Date
+  startTime              String?                @map("start_time")
+  endTime                String?                @map("end_time")
+  locationId             String?                @map("location_id")
+  reason                 String?
+  providerAvailabilityId String                 @map("provider_availability_id")
+  fullDayBlock           Boolean?               @map("full_day_block")
+  Locations              provider_locations?    @relation(fields: [locationId], references: [uuid])
+  providerAvailability   provider_availability? @relation(fields: [providerAvailabilityId], references: [uuid])
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
